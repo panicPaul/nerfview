@@ -34,9 +34,9 @@ class CameraState(object):
 class ViewerState(object):
     num_train_rays_per_sec: Optional[float] = None
     num_view_rays_per_sec: float = 100000.0
-    status: Literal[
-        "rendering", "preparing", "training", "paused", "completed"
-    ] = "training"
+    status: Literal["rendering", "preparing", "training", "paused", "completed"] = (
+        "training"
+    )
 
 
 VIEWER_LOCK = Lock()
@@ -60,9 +60,9 @@ class Viewer(object):
     Args:
         server (viser.ViserServer): The viser server object to bind to.
         render_fn (Callable): A function that takes a camera state and image
-            resolution as input and returns an image as a uint8 numpy array.
-            Optionally, it can return a tuple of two images, where the second image
-            is a float32 numpy depth map.
+            resolution and the current frame as input and returns an image as a
+            uint8 numpy array. Optionally, it can return a tuple of two images, where
+            the second image is a float32 numpy depth map.
         mode (Literal["training", "rendering"]): The mode of the viewer.
             Support rendering and training. Defaults to "rendering".
     """
@@ -71,7 +71,7 @@ class Viewer(object):
         self,
         server: viser.ViserServer,
         render_fn: Callable[
-            [CameraState, Tuple[int, int]],
+            [CameraState, Tuple[int, int], int],
             Union[
                 UInt8[np.ndarray, "H W 3"],
                 Tuple[UInt8[np.ndarray, "H W 3"], Optional[Float32[np.ndarray, "H W"]]],
@@ -87,6 +87,7 @@ class Viewer(object):
         self.state = ViewerState()
         if self.mode == "rendering":
             self.state.status = "rendering"
+        self.current_frame = 0
 
         # Private states.
         self._renderers: dict[int, Renderer] = {}
@@ -100,6 +101,7 @@ class Viewer(object):
         self._define_guis()
 
     def _define_guis(self):
+        # Stats
         with self.server.gui.add_folder(
             "Stats", visible=self.mode == "training"
         ) as self._stats_folder:
@@ -111,6 +113,7 @@ class Viewer(object):
             )
             self._stats_text = self.server.gui.add_markdown(self._stats_text_fn())
 
+        # Training
         with self.server.gui.add_folder(
             "Training", visible=self.mode == "training"
         ) as self._training_folder:
@@ -127,11 +130,58 @@ class Viewer(object):
             )
             self._train_util_slider.on_update(self.rerender)
 
+        # Rendering
         with self.server.gui.add_folder("Rendering") as self._rendering_folder:
             self._max_img_res_slider = self.server.gui.add_slider(
                 "Max Img Res", min=64, max=2048, step=1, initial_value=2048
             )
             self._max_img_res_slider.on_update(self.rerender)
+
+        # Playback control
+        with self.server.gui.add_folder("Playback"):
+            self.gui_timestep = self.server.gui.add_slider(
+                "Timestep",
+                min=0,
+                max=self.num_frames - 1,
+                step=1,
+                initial_value=0,
+                disabled=True,
+            )
+            self.gui_next_frame = self.server.gui.add_button(
+                "Next Frame", disabled=True
+            )
+            self.gui_prev_frame = self.server.gui.add_button(
+                "Prev Frame", disabled=True
+            )
+            self.gui_playing = self.server.gui.add_checkbox("Playing", True)
+            self.gui_framerate = self.server.gui.add_slider(
+                "FPS", min=1, max=24, step=0.1, initial_value=24
+            )
+            self.gui_framerate_options = self.server.gui.add_button_group(
+                "Playback Speed", ("0.25x", "0.5x", "1x")
+            )
+
+        @self.gui_next_frame.on_click
+        def _(_) -> None:
+            self.gui_timestep.value = (self.gui_timestep.value + 1) % self.num_frames
+
+        @self.gui_prev_frame.on_click
+        def _(_) -> None:
+            self.gui_timestep.value = (self.gui_timestep.value - 1) % self.num_frames
+
+        # Disable frame controls when we're playing.
+        @self.gui_playing.on_update
+        def _(_) -> None:
+            self.gui_timestep.disabled = self.gui_playing.value
+            self.gui_next_frame.disabled = self.gui_playing.value
+            self.gui_prev_frame.disabled = self.gui_playing.value
+
+        # Set the framerate when we click one of the options.
+        @self.gui_framerate_options.on_click
+        def _(_) -> None:
+            self.gui_framerate.value = int(
+                float(self.gui_framerate_options.value[:-1]) * 24
+            )
 
     def _toggle_train_buttons(self, _):
         self._pause_train_button.visible = not self._pause_train_button.visible
