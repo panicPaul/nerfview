@@ -24,7 +24,7 @@ def main(port: int = 8080, rendering_latency: float = 0.0):
     """
 
     def render_fn(
-        camera_state: nerfview.CameraState, img_wh: Tuple[int, int]
+        camera_state: nerfview.CameraState, img_wh: Tuple[int, int], time_step: int = 0
     ) -> UInt8[np.ndarray, "H W 3"]:
         # Get camera parameters.
         W, H = img_wh
@@ -46,6 +46,10 @@ def main(port: int = 8080, rendering_latency: float = 0.0):
         dirs /= np.linalg.norm(dirs, axis=-1, keepdims=True)
 
         img = ((dirs + 1.0) / 2.0 * 255.0).astype(np.uint8)
+        # add sinusoidal brightness modulation based on time_step
+        # we assume a period of 3 seconds i.e. 72 frames at 24 fps
+        brightness = 0.5 + 0.5 * np.sin(2 * np.pi * time_step / 72)
+        img = (img * brightness).clip(0, 255).astype(np.uint8)
         return img
 
     def delayed_render_fn(*args, **kwargs):
@@ -60,13 +64,14 @@ def main(port: int = 8080, rendering_latency: float = 0.0):
         server=server,
         render_fn=delayed_render_fn,
         mode="rendering",
+        num_frames=72,
     )
     # Optionally make world axes visible for better visualization in this
     # example. You don't need to do this in your own code.
     server.scene.world_axes.visible = True
 
     while True:
-        time.sleep(1.0)
+        time.sleep(0.001)
 
 
 if __name__ == "__main__":

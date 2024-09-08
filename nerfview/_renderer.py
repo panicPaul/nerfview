@@ -122,13 +122,24 @@ class Renderer(threading.Thread):
         self._render_event.set()
 
     def run(self):
+        previous_time = time.time()
         while self.running:
             while not self.is_prepared_fn():
                 time.sleep(0.1)
-            if not self._render_event.wait(0.2):
+            if not self._render_event.wait(1 / 50):
+                if self.viewer.gui_playing.value:
+                    cur_frame = self.viewer.gui_timestep.value
+                    frame_time = 1 / self.viewer.gui_framerate.value
+                    elapsed_time = time.time() - previous_time
+                    if elapsed_time > frame_time:
+                        previous_time = time.time()
+                        self.viewer.gui_timestep.value = (
+                            self.viewer.gui_timestep.value + 1
+                        ) % self.viewer.num_frames
                 self.submit(
                     RenderTask("static", self.viewer.get_camera_state(self.client))
                 )
+
             self._render_event.clear()
             task = self._task
             assert task is not None
@@ -161,6 +172,6 @@ class Renderer(threading.Thread):
             self.client.scene.set_background_image(
                 img,
                 format="jpeg",
-                jpeg_quality=70 if task.action in ["static", "update"] else 40,
+                jpeg_quality=90 if task.action in ["static", "update"] else 40,
                 depth=depth,
             )

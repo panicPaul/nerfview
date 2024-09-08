@@ -78,6 +78,7 @@ class Viewer(object):
             ],
         ],
         mode: Literal["rendering", "training"] = "rendering",
+        num_frames: int = 1,
     ):
         # Public states.
         self.server = server
@@ -88,6 +89,7 @@ class Viewer(object):
         if self.mode == "rendering":
             self.state.status = "rendering"
         self.current_frame = 0
+        self.num_frames = num_frames
 
         # Private states.
         self._renderers: dict[int, Renderer] = {}
@@ -147,6 +149,7 @@ class Viewer(object):
                 initial_value=0,
                 disabled=True,
             )
+            self.gui_timestep.on_update(self.rerender)
             self.gui_next_frame = self.server.gui.add_button(
                 "Next Frame", disabled=True
             )
@@ -154,12 +157,15 @@ class Viewer(object):
                 "Prev Frame", disabled=True
             )
             self.gui_playing = self.server.gui.add_checkbox("Playing", True)
+            self.gui_playing.on_update(self.rerender)
             self.gui_framerate = self.server.gui.add_slider(
                 "FPS", min=1, max=24, step=0.1, initial_value=24
             )
+            self.gui_framerate.on_update(self.rerender)
             self.gui_framerate_options = self.server.gui.add_button_group(
                 "Playback Speed", ("0.25x", "0.5x", "1x")
             )
+            self.gui_framerate_options.on_click(self.rerender)
 
         @self.gui_next_frame.on_click
         def _(_) -> None:
