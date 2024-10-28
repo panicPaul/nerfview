@@ -26,6 +26,7 @@ class InterruptRenderException(Exception):
 
 
 class set_trace_context(object):
+
     def __init__(self, func):
         self.func = func
 
@@ -66,7 +67,9 @@ class Renderer(threading.Thread):
 
     def _define_transitions(self):
         transitions: dict[RenderState, dict[RenderAction, RenderState]] = {
-            s: {a: s for a in get_args(RenderAction)} for s in get_args(RenderState)
+            s: {
+                a: s for a in get_args(RenderAction)
+            } for s in get_args(RenderState)
         }
         transitions["low_move"]["static"] = "low_static"
         transitions["low_static"]["static"] = "high"
@@ -96,7 +99,7 @@ class Renderer(threading.Thread):
             num_view_rays_per_sec = self.viewer.state.num_view_rays_per_sec
             target_fps = self._target_fps
             num_viewer_rays = num_view_rays_per_sec / target_fps
-            H = (num_viewer_rays / aspect) ** 0.5
+            H = (num_viewer_rays / aspect)**0.5
             H = int(round(H, -1))
             H = max(min(max_img_res, H), 30)
             W = int(H * aspect)
@@ -110,9 +113,8 @@ class Renderer(threading.Thread):
     def submit(self, task: RenderTask):
         if self._task is None:
             self._task = task
-        elif task.action == "update" and (
-            self._state == "low_move" or self._task.action in ["move", "rerender"]
-        ):
+        elif task.action == "update" and (self._state == "low_move" or
+                                          self._task.action in ["move", "rerender"]):
             return
         else:
             self._task = task
@@ -133,12 +135,9 @@ class Renderer(threading.Thread):
                     elapsed_time = time.time() - previous_time
                     if elapsed_time > frame_time:
                         previous_time = time.time()
-                        self.viewer.gui_timestep.value = (
-                            self.viewer.gui_timestep.value + 1
-                        ) % self.viewer.num_frames
-                self.submit(
-                    RenderTask("static", self.viewer.get_camera_state(self.client))
-                )
+                        self.viewer.gui_timestep.value = (self.viewer.gui_timestep.value
+                                                          + 1) % self.viewer.num_frames
+                self.submit(RenderTask("static", self.viewer.get_camera_state(self.client)))
 
             self._render_event.clear()
             task = self._task
@@ -154,16 +153,15 @@ class Renderer(threading.Thread):
                     W, H = img_wh = self._get_img_wh(task.camera_state.aspect)
                     # TODO: add time step incrementing, for now it is static
                     cur_frame = self.viewer.gui_timestep.value
-                    rendered = self.viewer.render_fn(
-                        task.camera_state, img_wh, cur_frame
-                    )
+                    render_mode = self.viewer.state.render_mode
+                    rendered = self.viewer.render_fn(task.camera_state, img_wh, cur_frame,
+                                                     render_mode)
                     if isinstance(rendered, tuple):
                         img, depth = rendered
                     else:
                         img, depth = rendered, None
-                    self.viewer.state.num_view_rays_per_sec = (W * H) / (
-                        max(time.time() - tic, 1e-6)
-                    )
+                    self.viewer.state.num_view_rays_per_sec = (W*H) / (
+                        max(time.time() - tic, 1e-6))
             except InterruptRenderException:
                 continue
             except Exception:
