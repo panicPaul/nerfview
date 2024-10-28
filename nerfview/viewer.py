@@ -166,12 +166,12 @@ class Viewer(object):
             self.render_color_button.on_click(self._toggle_render_depth_state)
             self.render_color_button.on_click(self.rerender)
             self.depth_bounds = self.server.gui.add_vector2(
-                "Depth Bounds", hint="min, max", initial_value=(0.0, 1.0))
+                "Depth Bounds", initial_value=(0.0, 1.0), step=0.01)
 
         @self.depth_bounds.on_update
         def _(_) -> None:
             self.state.depth_bounds = self.depth_bounds.value
-            self.rerender()
+            self.rerender(None)
 
         @self.gui_next_frame.on_click
         def _(_) -> None:
