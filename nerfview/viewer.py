@@ -34,6 +34,7 @@ class ViewerState(object):
     num_view_rays_per_sec: float = 100000.0
     status: Literal["rendering", "preparing", "training", "paused", "completed"] = ("training")
     render_mode: Literal["color", "depth"] = "color"
+    depth_bounds: tuple[float, float] = (0.0, 1.0)
 
 
 VIEWER_LOCK = Lock()
@@ -153,15 +154,23 @@ class Viewer(object):
                 "Playback Speed", ("0.25x", "0.5x", "1x"))
             self.gui_framerate_options.on_click(self.rerender)
 
-        # depth button
+        # depth button and depth bounds
         with self.server.gui.add_folder("Depth"):
             self.render_depth_button = self.server.gui.add_button("Render Depth")
             self.render_depth_button.on_click(self._toggle_render_depth_button)
             self.render_depth_button.on_click(self._toggle_render_depth_state)
+            self.render_depth_button.on_click(self.rerender)
             self.render_color_button = self.server.gui.add_button("Render Color")
             self.render_color_button.visible = False
             self.render_color_button.on_click(self._toggle_render_depth_button)
             self.render_color_button.on_click(self._toggle_render_depth_state)
+            self.render_color_button.on_click(self.rerender)
+            self.depth_bounds = self.server.gui.add_vector2("Depth Bounds", hint="min, max")
+
+        @self.depth_bounds.on_update
+        def _(_) -> None:
+            self.state.depth_bounds = self.depth_bounds.value
+            self.rerender()
 
         @self.gui_next_frame.on_click
         def _(_) -> None:

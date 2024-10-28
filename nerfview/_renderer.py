@@ -154,8 +154,9 @@ class Renderer(threading.Thread):
                     # TODO: add time step incrementing, for now it is static
                     cur_frame = self.viewer.gui_timestep.value
                     render_mode = self.viewer.state.render_mode
+                    depth_bounds = self.viewer.state.depth_bounds
                     rendered = self.viewer.render_fn(task.camera_state, img_wh, cur_frame,
-                                                     render_mode)
+                                                     render_mode, depth_bounds)
                     if isinstance(rendered, tuple):
                         img, depth = rendered
                     else:
