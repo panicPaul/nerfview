@@ -159,6 +159,7 @@ class Viewer(object):
             self.render_depth_button.on_click(self._toggle_render_depth_button)
             self.render_depth_button.on_click(self._toggle_render_depth_state)
             self.render_color_button = self.server.gui.add_button("Render Color")
+            self.render_color_button.visible = False
             self.render_color_button.on_click(self._toggle_render_depth_button)
             self.render_color_button.on_click(self._toggle_render_depth_state)
 
