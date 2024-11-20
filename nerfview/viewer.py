@@ -148,10 +148,10 @@ class Viewer(object):
             self.gui_playing = self.server.gui.add_checkbox("Playing", True)
             self.gui_playing.on_update(self.rerender)
             self.gui_framerate = self.server.gui.add_slider(
-                "FPS", min=1, max=24, step=0.1, initial_value=24)
+                "FPS", min=1, max=50, step=0.1, initial_value=30)
             self.gui_framerate.on_update(self.rerender)
             self.gui_framerate_options = self.server.gui.add_button_group(
-                "Playback Speed", ("0.25x", "0.5x", "1x"))
+                "Playback Speed", ("15fps", "24fps", "30fps"))
             self.gui_framerate_options.on_click(self.rerender)
 
         # depth button and depth bounds
@@ -191,7 +191,9 @@ class Viewer(object):
         # Set the framerate when we click one of the options.
         @self.gui_framerate_options.on_click
         def _(_) -> None:
-            self.gui_framerate.value = int(float(self.gui_framerate_options.value[:-1]) * 24)
+            #self.gui_framerate.value = int(float(self.gui_framerate_options.value[:-1]) * 24)
+            self.gui_framerate.value = int(float(self.gui_framerate_options.value[:-3]))
+            self.rerender(None)
 
     def _toggle_train_buttons(self, _):
         self._pause_train_button.visible = not self._pause_train_button.visible
